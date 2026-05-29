@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { computeOverload, isNormal, computeSetPlan } from '../utils/overload';
+import { computeOverload, isNormal, computeSetPlan, getRepRange } from '../utils/overload';
 
 const CARD = {
   increase: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5' },
@@ -67,15 +67,16 @@ function SetRow({ num, set, plan }) {
   );
 }
 
-export function ExerciseCard({ exercise, history }) {
+export function ExerciseCard({ exercise, history, repRange }) {
   const [expanded, setExpanded] = useState(false);
 
   const normalSets = (exercise.sets || []).filter(isNormal);
   if (!normalSets.length) return null;
 
-  const allHit12 = normalSets.every(s => (s.reps ?? 0) >= 12);
-  const setPlans = normalSets.map(s => computeSetPlan(s, allHit12));
-  const overallStatus = allHit12 ? 'increase'
+  const range = repRange || getRepRange(exercise.title, (history || []).map(h => h.avgReps));
+  const allHitMax = normalSets.every(s => (s.reps ?? 0) >= range.max);
+  const setPlans = normalSets.map(s => computeSetPlan(s, allHitMax, range));
+  const overallStatus = allHitMax ? 'increase'
     : setPlans.some(p => p.status === 'build') ? 'build' : 'maintain';
 
   const card = CARD[overallStatus];
@@ -88,9 +89,10 @@ export function ExerciseCard({ exercise, history }) {
         onClick={() => setExpanded(v => !v)}
       >
         <div className="flex items-start justify-between gap-2 mb-3">
-          <h3 className="text-sm font-semibold text-white leading-snug flex-1">
-            {exercise.title}
-          </h3>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-white leading-snug">{exercise.title}</h3>
+            <p className="text-[10px] text-zinc-500 mt-0.5">Target range: {range.min}–{range.max} reps</p>
+          </div>
           <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${OVERALL_BADGE[overallStatus]}`}>
             {OVERALL_LABEL[overallStatus]}
           </span>

@@ -1,17 +1,17 @@
 import { computeOverload } from '../utils/overload';
 
-export function SummaryBar({ exercises }) {
+export function SummaryBar({ exercises, repRanges = {} }) {
   const counts = { increase: 0, maintain: 0, build: 0 };
   for (const ex of exercises) {
-    const plan = computeOverload(ex);
+    const plan = computeOverload(ex, repRanges[ex.title]);
     if (plan) counts[plan.status]++;
   }
 
   return (
-    <div className="flex gap-2 px-4 py-3 shrink-0">
+    <div className="flex gap-2 px-4 md:px-6 py-3 shrink-0">
       <Pill count={counts.increase} label="Increase" className="bg-emerald-500/15 text-emerald-400" />
-      <Pill count={counts.maintain} label="Maintain" className="bg-blue-500/15 text-blue-400" />
-      <Pill count={counts.build}    label="Build"    className="bg-amber-500/15 text-amber-400" />
+      <Pill count={counts.maintain} label="Maintain"  className="bg-blue-500/15 text-blue-400"    />
+      <Pill count={counts.build}    label="Build"     className="bg-amber-500/15 text-amber-400"  />
     </div>
   );
 }

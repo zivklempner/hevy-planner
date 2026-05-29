@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getRecentWorkouts } from '../api/hevy';
+import { getRepRange } from '../utils/overload';
 
 export function useWorkouts(apiKey) {
   const [workouts, setWorkouts] = useState([]);
@@ -81,5 +82,11 @@ export function useSplitData(workouts, split) {
     history[name].sort((a, b) => new Date(a.date) - new Date(b.date));
   }
 
-  return { exercises, history };
+  // Derive rep range for each exercise using history as fallback for unknowns
+  const repRanges = {};
+  for (const name of Object.keys(history)) {
+    repRanges[name] = getRepRange(name, history[name].map(h => h.avgReps));
+  }
+
+  return { exercises, history, repRanges };
 }

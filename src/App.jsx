@@ -19,7 +19,7 @@ export default function App() {
     if (nextSplit && !selectedTab) setSelectedTab(nextSplit);
   }, [nextSplit]);
 
-  const { exercises, history } = useSplitData(workouts, selectedTab || '');
+  const { exercises, history, repRanges } = useSplitData(workouts, selectedTab || '');
 
   if (!apiKey || showSettings) {
     return (
@@ -131,7 +131,7 @@ export default function App() {
               <InsightsTab workouts={workouts} />
             ) : (
               <>
-                <SummaryBar exercises={exercises} />
+                <SummaryBar exercises={exercises} repRanges={repRanges} />
                 <div className="px-4 md:px-6 pb-28 grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
                   {exercises.length === 0 ? (
                     <p className="text-zinc-500 text-sm text-center col-span-full py-10">
@@ -143,6 +143,7 @@ export default function App() {
                         key={`${ex.title}-${i}`}
                         exercise={ex}
                         history={history[ex.title] || []}
+                        repRange={repRanges[ex.title]}
                       />
                     ))
                   )}
