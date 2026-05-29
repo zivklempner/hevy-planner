@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "workouts": {
+      ".read": true,
+      ".write": false
+    },
+    "meta": {
+      ".read": true,
+      ".write": false
+    }
+  }
+}
