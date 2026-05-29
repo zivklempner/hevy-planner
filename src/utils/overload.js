@@ -1,38 +1,48 @@
-/**
- * Given an exercise from the most-recent split workout, return the progressive
- * overload recommendation for the next session.
- *
- * Rules (hypertrophy, 8–12 rep range):
- *   all sets ≥ 12 reps  → bump weight +2.5 kg, drop to 8 reps  (status: increase)
- *   avg reps 8–11       → same weight, aim for avg+1 reps       (status: maintain)
- *   avg reps < 8        → same weight, same reps target          (status: build)
- */
-export function computeOverload(exercise) {
-  const normalSets = (exercise.sets || []).filter(s => s.type === 'normal' || s.set_type === 'normal');
-  if (!normalSets.length) return null;
+export function isNormal(s) {
+  return s.type === 'normal' || s.set_type === 'normal';
+}
 
-  const avgReps = normalSets.reduce((sum, s) => sum + s.reps, 0) / normalSets.length;
-  const lastWeight = normalSets[normalSets.length - 1].weight_kg ?? 0;
-  const allHit12 = normalSets.every(s => s.reps >= 12);
+/**
+ * Per-set recommendation.
+ * allHit12: true when every normal set in this exercise hit ≥12 reps last session.
+ *
+ * Logic:
+ *   allHit12          → bump weight +2.5 kg, drop to 8 reps        (increase)
+ *   this set = 12     → hold at 12 reps / same weight               (ready – others catching up)
+ *   this set 8–11     → +1 rep, same weight                         (maintain)
+ *   this set < 8      → +1 rep, same weight                         (build)
+ */
+export function computeSetPlan(set, allHit12) {
+  const weight = set.weight_kg ?? 0;
+  const reps = set.reps ?? 0;
 
   if (allHit12) {
-    return {
-      status: 'increase',
-      targetWeight: lastWeight + 2.5,
-      targetReps: 8,
-      lastReps: Math.round(avgReps),
-      lastWeight,
-      sets: normalSets.length,
-    };
+    return { targetWeight: weight + 2.5, targetReps: 8, status: 'increase', lastReps: reps, lastWeight: weight };
   }
-
-  const status = avgReps < 8 ? 'build' : 'maintain';
+  if (reps >= 12) {
+    return { targetWeight: weight, targetReps: 12, status: 'ready', lastReps: reps, lastWeight: weight };
+  }
   return {
-    status,
-    targetWeight: lastWeight,
-    targetReps: Math.min(Math.round(avgReps) + 1, 12),
-    lastReps: Math.round(avgReps),
-    lastWeight,
-    sets: normalSets.length,
+    targetWeight: weight,
+    targetReps: Math.min(reps + 1, 12),
+    status: reps < 8 ? 'build' : 'maintain',
+    lastReps: reps,
+    lastWeight: weight,
   };
+}
+
+/**
+ * Exercise-level summary used by SummaryBar.
+ * Returns null if no normal sets found.
+ */
+export function computeOverload(exercise) {
+  const sets = (exercise.sets || []).filter(isNormal);
+  if (!sets.length) return null;
+
+  const allHit12 = sets.every(s => (s.reps ?? 0) >= 12);
+  const setPlans = sets.map(s => computeSetPlan(s, allHit12));
+  const overallStatus = allHit12 ? 'increase'
+    : setPlans.some(p => p.status === 'build') ? 'build' : 'maintain';
+
+  return { status: overallStatus, sets: sets.length, setPlans, allHit12 };
 }

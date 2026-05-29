@@ -5,10 +5,6 @@ function apiKey() {
   return localStorage.getItem('hevy_api_key') || '';
 }
 
-/**
- * Fetch workouts: tries Cloud Function cache first, falls back to direct Hevy API.
- * Returns { workouts: [...], latestSync: timestamp|null }
- */
 export async function getRecentWorkouts() {
   if (FUNCTIONS_BASE) {
     try {
@@ -16,37 +12,36 @@ export async function getRecentWorkouts() {
       if (res.ok) {
         const data = await res.json();
         const workouts = Array.isArray(data) ? data : data.workouts;
-        if (workouts?.length) {
-          return { workouts, latestSync: data.latestSync ?? null };
-        }
+        if (workouts?.length) return { workouts, latestSync: data.latestSync ?? null };
       }
     } catch {
-      // fall through to direct API
+      // fall through
     }
   }
-
-  return fetchFromHevy();
+  return fetchAllFromHevy();
 }
 
-async function fetchFromHevy(maxPages = 9) {
-  const key = apiKey();
-  const allWorkouts = [];
+// Fetch ALL available pages so the history chart and insights have full data.
+async function fetchAllFromHevy() {
+  const headers = { 'api-key': apiKey() };
 
-  for (let page = 1; page <= maxPages; page++) {
-    const res = await fetch(
-      `${HEVY_BASE}/workouts?page=${page}&pageSize=10`,
-      { headers: { 'api-key': key } }
-    );
-    if (!res.ok) throw new Error(`Hevy API ${res.status}`);
-    const json = await res.json();
-    const batch = json.workouts || json || [];
-    allWorkouts.push(...batch);
-    if (batch.length < 10) break;
+  const firstRes = await fetch(`${HEVY_BASE}/workouts?page=1&pageSize=10`, { headers });
+  if (!firstRes.ok) throw new Error(`Hevy API ${firstRes.status}`);
+  const firstData = await firstRes.json();
+
+  const totalPages = Math.min(firstData.page_count || 1, 50); // hard cap at 500 workouts
+  const all = [...(firstData.workouts || [])];
+
+  for (let page = 2; page <= totalPages; page++) {
+    const res = await fetch(`${HEVY_BASE}/workouts?page=${page}&pageSize=10`, { headers });
+    if (!res.ok) break;
+    const batch = (await res.json()).workouts || [];
+    if (!batch.length) break;
+    all.push(...batch);
   }
 
-  // Ensure newest-first order
-  allWorkouts.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
-  return { workouts: allWorkouts, latestSync: null };
+  all.sort((a, b) => new Date(b.start_time) - new Date(a.start_time));
+  return { workouts: all, latestSync: null };
 }
 
 export async function validateApiKey(key) {
