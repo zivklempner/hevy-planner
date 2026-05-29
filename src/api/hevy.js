@@ -28,20 +28,20 @@ export async function getRecentWorkouts() {
   return fetchFromHevy();
 }
 
-async function fetchFromHevy(maxPages = 3) {
+async function fetchFromHevy(maxPages = 9) {
   const key = apiKey();
   const allWorkouts = [];
 
   for (let page = 1; page <= maxPages; page++) {
     const res = await fetch(
-      `${HEVY_BASE}/workouts?page=${page}&pageSize=30`,
+      `${HEVY_BASE}/workouts?page=${page}&pageSize=10`,
       { headers: { 'api-key': key } }
     );
     if (!res.ok) throw new Error(`Hevy API ${res.status}`);
     const json = await res.json();
     const batch = json.workouts || json || [];
     allWorkouts.push(...batch);
-    if (batch.length < 30) break;
+    if (batch.length < 10) break;
   }
 
   // Ensure newest-first order

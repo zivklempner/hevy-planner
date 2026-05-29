@@ -65,7 +65,7 @@ export function useSplitData(workouts, split) {
   const history = {};
   for (const workout of splitWorkouts) {
     for (const ex of workout.exercises || []) {
-      const normalSets = (ex.sets || []).filter(s => s.set_type === 'normal');
+      const normalSets = (ex.sets || []).filter(s => s.type === 'normal' || s.set_type === 'normal');
       if (!normalSets.length) continue;
       const avgWeight = normalSets.reduce((s, set) => s + (set.weight_kg ?? 0), 0) / normalSets.length;
       const avgReps = normalSets.reduce((s, set) => s + set.reps, 0) / normalSets.length;

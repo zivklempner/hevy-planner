@@ -8,7 +8,7 @@
  *   avg reps < 8        → same weight, same reps target          (status: build)
  */
 export function computeOverload(exercise) {
-  const normalSets = (exercise.sets || []).filter(s => s.set_type === 'normal');
+  const normalSets = (exercise.sets || []).filter(s => s.type === 'normal' || s.set_type === 'normal');
   if (!normalSets.length) return null;
 
   const avgReps = normalSets.reduce((sum, s) => sum + s.reps, 0) / normalSets.length;

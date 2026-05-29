@@ -47,7 +47,7 @@ export function computeInsights(workouts, daysBack = 90) {
   for (const workout of recent) {
     for (const exercise of workout.exercises || []) {
       const name = exercise.title;
-      const normalSets = (exercise.sets || []).filter(s => s.set_type === 'normal');
+      const normalSets = (exercise.sets || []).filter(s => s.type === 'normal' || s.set_type === 'normal');
       if (!normalSets.length) continue;
       const avgWeight = normalSets.reduce((s, set) => s + (set.weight_kg ?? 0), 0) / normalSets.length;
       const avgReps = normalSets.reduce((s, set) => s + set.reps, 0) / normalSets.length;
