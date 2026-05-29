@@ -11,6 +11,7 @@ export const ALTERNATIVES = {
   'Bicep Curl': ['Hammer Curl', 'Incline Curl', 'Cable Curl'],
   'Barbell Bicep Curl': ['Hammer Curl', 'Incline Curl', 'Spider Curl'],
   'Dumbbell Bicep Curl': ['Hammer Curl', 'Concentration Curl', 'Cable Curl'],
+  'Zottman Curl': ['Dumbbell Curl', 'Hammer Curl', 'Reverse Curl'],
   'Tricep Pushdown': ['Skull Crusher', 'Close-Grip Bench Press', 'Overhead Tricep Extension'],
   'Skull Crusher': ['Tricep Pushdown', 'Close-Grip Bench Press', 'Dumbbell Tricep Extension'],
   'Lateral Raise': ['Cable Lateral Raise', 'Upright Row', 'Face Pull'],
@@ -32,27 +33,46 @@ export const ALTERNATIVES = {
   'Hanging Leg Raise': ['Cable Crunch', 'Ab Wheel Rollout', 'Dragon Flag'],
 };
 
+// Epley estimated 1-rep max — combines weight + reps into one score.
+function est1RM(weight, reps) {
+  if (!reps || !weight) return 0;
+  return weight * (1 + reps / 30);
+}
+
+function isNormal(s) {
+  return s.type === 'normal' || s.set_type === 'normal';
+}
+
 /**
- * Analyse workout history and return three insight buckets:
- *   improvers — top 6 exercises by % weight gain (min 3 sessions)
- *   stuck     — exercises where last 4+ sessions have < 1 kg weight variation
- *   declining — exercises with > 5% weight decrease first → last
+ * Analyse workouts and return three insight buckets.
+ * All progress is measured via estimated 1RM so that trading weight for reps
+ * (e.g. dropping 1 kg while gaining 2 reps) doesn't incorrectly look like decline.
+ *
+ * Thresholds:
+ *   improvers  e1RM improved > 5%   (first → last session, min 3 sessions)
+ *   stuck      e1RM variation < 3%  across last 4+ sessions
+ *   declining  e1RM dropped  > 5%   (first → last session, min 3 sessions)
  */
 export function computeInsights(workouts, daysBack = 90) {
   const cutoff = new Date(Date.now() - daysBack * 86400000);
   const recent = workouts.filter(w => new Date(w.start_time) >= cutoff);
 
-  // Build per-exercise session arrays: [{date, avgWeight, avgReps}]
+  // Build per-exercise session arrays
   const byExercise = {};
   for (const workout of recent) {
     for (const exercise of workout.exercises || []) {
       const name = exercise.title;
-      const normalSets = (exercise.sets || []).filter(s => s.type === 'normal' || s.set_type === 'normal');
-      if (!normalSets.length) continue;
-      const avgWeight = normalSets.reduce((s, set) => s + (set.weight_kg ?? 0), 0) / normalSets.length;
-      const avgReps = normalSets.reduce((s, set) => s + set.reps, 0) / normalSets.length;
+      const sets = (exercise.sets || []).filter(isNormal);
+      if (!sets.length) continue;
+      const avgWeight = sets.reduce((s, x) => s + (x.weight_kg ?? 0), 0) / sets.length;
+      const avgReps   = sets.reduce((s, x) => s + x.reps, 0) / sets.length;
       if (!byExercise[name]) byExercise[name] = [];
-      byExercise[name].push({ date: workout.start_time, avgWeight, avgReps });
+      byExercise[name].push({
+        date: workout.start_time,
+        avgWeight,
+        avgReps,
+        e1rm: est1RM(avgWeight, avgReps),
+      });
     }
   }
 
@@ -65,45 +85,72 @@ export function computeInsights(workouts, daysBack = 90) {
     sessions.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     const first = sessions[0];
-    const last = sessions[sessions.length - 1];
-    const pctChange = first.avgWeight > 0
-      ? ((last.avgWeight - first.avgWeight) / first.avgWeight) * 100
-      : 0;
+    const last  = sessions[sessions.length - 1];
 
-    // Stuck: last 4+ sessions with < 1 kg variation
+    const e1rmPct    = first.e1rm > 0 ? ((last.e1rm - first.e1rm) / first.e1rm) * 100 : 0;
+    const weightPct  = first.avgWeight > 0 ? ((last.avgWeight - first.avgWeight) / first.avgWeight) * 100 : 0;
+    const repsDelta  = last.avgReps - first.avgReps;
+
+    // Stuck: last 4+ sessions with < 3% e1RM spread
     if (sessions.length >= 4) {
-      const tail = sessions.slice(-4).map(s => s.avgWeight);
-      const variation = Math.max(...tail) - Math.min(...tail);
-      if (variation < 1) {
+      const tail  = sessions.slice(-4).map(s => s.e1rm);
+      const hi    = Math.max(...tail);
+      const lo    = Math.min(...tail);
+      const spread = hi > 0 ? ((hi - lo) / hi) * 100 : 0;
+      if (spread < 3) {
         stuck.push({
           name,
-          currentWeight: +last.avgWeight.toFixed(1),
-          sessionCount: sessions.length,
-          alternatives: ALTERNATIVES[name] || [],
+          currentWeight:  +last.avgWeight.toFixed(1),
+          currentReps:    +last.avgReps.toFixed(1),
+          currentE1rm:    +last.e1rm.toFixed(1),
+          sessionCount:   sessions.length,
+          alternatives:   ALTERNATIVES[name] || [],
         });
       }
     }
 
-    if (pctChange >= 5) {
+    if (e1rmPct >= 5) {
       improvers.push({
         name,
         firstWeight: +first.avgWeight.toFixed(1),
-        lastWeight: +last.avgWeight.toFixed(1),
+        lastWeight:  +last.avgWeight.toFixed(1),
+        firstE1rm:   +first.e1rm.toFixed(1),
+        lastE1rm:    +last.e1rm.toFixed(1),
         sessionCount: sessions.length,
-        pctChange: +pctChange.toFixed(1),
+        e1rmPct:     +e1rmPct.toFixed(1),
+        weightPct:   +weightPct.toFixed(1),
+        repsDelta:   +repsDelta.toFixed(1),
       });
-    } else if (pctChange < -5) {
+    } else if (e1rmPct < -5) {
+      // Characterise the decline so the UI can give context
+      const weightDown = weightPct < -2;
+      const repsDown   = repsDelta < -0.5;
+      const repsUp     = repsDelta >  0.5;
+
+      let interpretation;
+      if (weightDown && repsUp) {
+        interpretation = 'Weight reduced while reps increased — likely a technique reset or form focus. Worth monitoring but not alarming.';
+      } else if (weightDown && repsDown) {
+        interpretation = 'Both weight and reps declined. Consider a deload week or review sleep and recovery.';
+      } else {
+        interpretation = 'Rep fatigue — normal variation. Watch next 2–3 sessions before acting.';
+      }
+
       declining.push({
         name,
-        firstWeight: +first.avgWeight.toFixed(1),
-        lastWeight: +last.avgWeight.toFixed(1),
+        firstWeight:  +first.avgWeight.toFixed(1),
+        lastWeight:   +last.avgWeight.toFixed(1),
+        firstE1rm:    +first.e1rm.toFixed(1),
+        lastE1rm:     +last.e1rm.toFixed(1),
         sessionCount: sessions.length,
-        pctChange: +pctChange.toFixed(1),
+        e1rmPct:      +e1rmPct.toFixed(1),
+        interpretation,
       });
     }
   }
 
-  improvers.sort((a, b) => b.pctChange - a.pctChange);
+  improvers.sort((a, b) => b.e1rmPct - a.e1rmPct);
+  declining.sort((a, b) => a.e1rmPct - b.e1rmPct); // worst first
 
   return { improvers: improvers.slice(0, 6), stuck, declining };
 }
