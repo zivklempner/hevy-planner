@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { SetupScreen } from './components/SetupScreen';
 import { SplitTabs } from './components/SplitTabs';
 import { ExerciseCard } from './components/ExerciseCard';
@@ -41,6 +42,8 @@ export default function App() {
     return `${Math.floor(effectiveSyncMin / 60)}h ago`;
   }
 
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW();
+
   // All tabs including Insights at end
   const allTabs = [...uniqueSplits, 'Insights'];
   const isInsights = selectedTab === 'Insights';
@@ -48,25 +51,41 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
 
-      {/* ── Header (full width, sticky) ── */}
-      <header className="sticky top-0 z-40 bg-zinc-950 border-b border-zinc-800 px-4 md:px-8 h-14 flex items-center justify-between shrink-0">
-        <h1 className="text-base font-bold tracking-tight">Hevy Planner</h1>
-        <div className="flex items-center gap-3">
-          {syncLabel() && (
+      {/* ── Update banner (shown when a new service worker is waiting) ── */}
+      {needRefresh && (
+        <div className="fixed inset-x-0 bottom-20 z-50 flex justify-center px-4">
+          <div className="bg-blue-600 text-white text-sm rounded-full px-5 py-2.5 shadow-xl flex items-center gap-3">
+            <span>Update available</span>
             <button
-              onClick={refresh}
-              disabled={loading}
-              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
-            >
-              <span className={`w-2 h-2 rounded-full ${effectiveSyncMin < 30 ? 'bg-emerald-500' : 'bg-zinc-500'}`} />
-              {loading ? 'Syncing…' : syncLabel()}
-            </button>
-          )}
-          <button
-            onClick={() => setShowSettings(true)}
-            className="text-zinc-500 hover:text-zinc-200 text-lg leading-none transition-colors"
-            aria-label="Settings"
-          >⚙</button>
+              onClick={() => updateServiceWorker(true)}
+              className="font-bold underline"
+            >Reload</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Header — pt-safe pushes content below iPhone status bar ── */}
+      {/* pt-safe pads below the iPhone status bar; inner div is the visible 56px row */}
+      <header className="sticky top-0 z-40 bg-zinc-950 border-b border-zinc-800 shrink-0 pt-safe">
+        <div className="h-14 px-4 md:px-8 flex items-center justify-between">
+          <h1 className="text-base font-bold tracking-tight">Hevy Planner</h1>
+          <div className="flex items-center gap-3">
+            {syncLabel() && (
+              <button
+                onClick={refresh}
+                disabled={loading}
+                className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                <span className={`w-2 h-2 rounded-full ${effectiveSyncMin < 30 ? 'bg-emerald-500' : 'bg-zinc-500'}`} />
+                {loading ? 'Syncing…' : syncLabel()}
+              </button>
+            )}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="text-zinc-500 hover:text-zinc-200 text-lg leading-none transition-colors p-2 -mr-2"
+              aria-label="Settings"
+            >⚙</button>
+          </div>
         </div>
       </header>
 

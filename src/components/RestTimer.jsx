@@ -52,7 +52,8 @@ export function RestTimer() {
   return (
     <button
       onClick={handleTap}
-      className={`fixed bottom-6 right-4 w-16 h-16 rounded-full shadow-2xl flex flex-col items-center justify-center transition-colors z-50 ${bgColor}`}
+      className={`fixed right-4 w-16 h-16 rounded-full shadow-2xl flex flex-col items-center justify-center transition-colors z-50 ${bgColor}`}
+      style={{ bottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}
       aria-label="Rest timer"
     >
       {state === 'done' ? (
