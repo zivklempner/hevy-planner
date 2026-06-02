@@ -88,5 +88,15 @@ export function useSplitData(workouts, split) {
     repRanges[name] = getRepRange(name, history[name].map(h => h.avgReps));
   }
 
-  return { exercises, history, repRanges };
+  // Metadata about the most recent session for this split
+  const last = splitWorkouts[0];
+  const lastSession = last ? {
+    date:          last.start_time,
+    exerciseCount: (last.exercises || []).length,
+    durationMins:  last.end_time
+      ? Math.round((new Date(last.end_time) - new Date(last.start_time)) / 60000)
+      : null,
+  } : null;
+
+  return { exercises, history, repRanges, lastSession };
 }

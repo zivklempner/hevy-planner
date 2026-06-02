@@ -19,7 +19,7 @@ export default function App() {
     if (nextSplit && !selectedTab) setSelectedTab(nextSplit);
   }, [nextSplit]);
 
-  const { exercises, history, repRanges } = useSplitData(workouts, selectedTab || '');
+  const { exercises, history, repRanges, lastSession } = useSplitData(workouts, selectedTab || '');
 
   if (!apiKey || showSettings) {
     return (
@@ -132,6 +132,7 @@ export default function App() {
             ) : (
               <>
                 <SummaryBar exercises={exercises} repRanges={repRanges} />
+              {lastSession && <LastSessionBanner session={lastSession} />}
                 <div className="px-4 md:px-6 pb-28 grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
                   {exercises.length === 0 ? (
                     <p className="text-zinc-500 text-sm text-center col-span-full py-10">
@@ -155,6 +156,41 @@ export default function App() {
       </div>
 
       <RestTimer />
+    </div>
+  );
+}
+
+function fmtTimeAgo(dateStr) {
+  const diffMs   = Date.now() - new Date(dateStr);
+  const diffMins  = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays  = Math.floor(diffHours / 24);
+  if (diffMins  < 60)  return `${diffMins}m ago`;
+  if (diffHours < 24)  return `${diffHours}h ago`;
+  if (diffDays  === 1) return 'Yesterday';
+  if (diffDays  < 7)   return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long' });
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function fmtDuration(mins) {
+  if (!mins) return null;
+  if (mins < 60) return `${mins}m`;
+  return `${Math.floor(mins / 60)}h ${mins % 60 ? `${mins % 60}m` : ''}`.trim();
+}
+
+function LastSessionBanner({ session }) {
+  const parts = [
+    fmtTimeAgo(session.date),
+    fmtDuration(session.durationMins),
+    session.exerciseCount ? `${session.exerciseCount} exercises` : null,
+  ].filter(Boolean);
+
+  return (
+    <div className="px-4 md:px-6 pb-2">
+      <p className="text-xs text-zinc-500">
+        <span className="text-zinc-600">Last session:</span>{' '}
+        {parts.join(' · ')}
+      </p>
     </div>
   );
 }
