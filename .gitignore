@@ -5,3 +5,5 @@ dist/
 functions/.env
 functions/node_modules/
 .firebase/
+*.csv
+*firebase-adminsdk*.json

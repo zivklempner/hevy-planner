@@ -3,7 +3,6 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { SetupScreen } from './components/SetupScreen';
 import { SplitTabs } from './components/SplitTabs';
 import { ExerciseCard } from './components/ExerciseCard';
-import { RestTimer } from './components/RestTimer';
 import { SummaryBar } from './components/SummaryBar';
 import { InsightsTab } from './components/InsightsTab';
 import { useWorkouts, useSplitData } from './hooks/useWorkouts';
@@ -174,7 +173,6 @@ export default function App() {
         </div>
       </div>
 
-      <RestTimer />
     </div>
   );
 }

@@ -6,25 +6,21 @@ import { computeOverload, isNormal, computeSetPlan, getRepRange } from '../utils
 
 const CARD = {
   increase: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5' },
-  maintain: { border: 'border-blue-500/40',    bg: 'bg-blue-500/5'    },
-  build:    { border: 'border-amber-500/40',   bg: 'bg-amber-500/5'   },
+  push:     { border: 'border-blue-500/40',    bg: 'bg-blue-500/5'    },
 };
 const OVERALL_BADGE = {
   increase: 'bg-emerald-600 text-white',
-  maintain: 'bg-blue-600 text-white',
-  build:    'bg-amber-600 text-white',
+  push:     'bg-blue-600 text-white',
 };
 const OVERALL_LABEL = {
   increase: '↑ Increase Weight',
-  maintain: '→ Push Reps',
-  build:    '⬆ Build Up',
+  push:     '→ Push Reps',
 };
 
 const SET_STATUS = {
   increase: { icon: '↑', color: 'text-emerald-400', bg: 'bg-emerald-900/60 text-emerald-300' },
   ready:    { icon: '✓', color: 'text-emerald-400', bg: 'bg-emerald-900/40 text-emerald-400' },
-  maintain: { icon: '→', color: 'text-blue-400',    bg: 'bg-blue-900/60 text-blue-300'       },
-  build:    { icon: '↗', color: 'text-amber-400',   bg: 'bg-amber-900/60 text-amber-300'     },
+  push:     { icon: '→', color: 'text-blue-400',    bg: 'bg-blue-900/60 text-blue-300'       },
 };
 
 function fmtDate(iso) {
@@ -83,8 +79,7 @@ export function ExerciseCard({ exercise, history, repRange }) {
   const range = repRange || getRepRange(exercise.title, (history || []).map(h => h.avgReps));
   const allHitMax = normalSets.every(s => (s.reps ?? 0) >= range.max);
   const setPlans = normalSets.map(s => computeSetPlan(s, allHitMax, range));
-  const overallStatus = allHitMax ? 'increase'
-    : setPlans.some(p => p.status === 'build') ? 'build' : 'maintain';
+  const overallStatus = allHitMax ? 'increase' : 'push';
 
   const card = CARD[overallStatus];
 

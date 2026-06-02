@@ -182,19 +182,21 @@ export function computeSetPlan(set, allHitMax, range = DEFAULT_RANGE) {
     return {
       targetWeight: bodyweight ? null : weight + 2.5,
       targetReps:   min,
-      status:       bodyweight ? 'maintain' : 'increase', // BW exercises: just add reps
+      status:       bodyweight ? 'push' : 'increase',
       lastReps: reps,
       lastWeight: weight,
       bodyweight,
     };
   }
   if (reps >= max) {
+    // This set is at max but not all sets are — hold here while others catch up
     return { targetWeight: weight, targetReps: max, status: 'ready', lastReps: reps, lastWeight: weight, bodyweight };
   }
+  // Both "in range" and "below range" have the same action: +1 rep, same weight
   return {
     targetWeight: weight,
     targetReps:   Math.min(reps + 1, max),
-    status:       reps < min ? 'build' : 'maintain',
+    status:       'push',
     lastReps: reps,
     lastWeight: weight,
     bodyweight,
@@ -210,8 +212,7 @@ export function computeOverload(exercise, range = DEFAULT_RANGE) {
 
   const allHitMax = sets.every(s => (s.reps ?? 0) >= range.max);
   const setPlans  = sets.map(s => computeSetPlan(s, allHitMax, range));
-  const overallStatus = allHitMax ? 'increase'
-    : setPlans.some(p => p.status === 'build') ? 'build' : 'maintain';
+  const overallStatus = allHitMax ? 'increase' : 'push';
 
   return { status: overallStatus, sets: sets.length, setPlans, allHitMax, range };
 }
