@@ -45,17 +45,24 @@ const ChartTooltip = ({ active, payload, label }) => {
   );
 };
 
+function fmtWeight(kg) {
+  if (kg === null || kg === undefined) return 'BW';
+  return `${kg} kg`;
+}
+
 function SetRow({ num, set, plan }) {
   const s = SET_STATUS[plan.status];
-  const weightChanged = plan.targetWeight !== set.weight_kg;
+  const weightChanged = !plan.bodyweight && plan.targetWeight !== set.weight_kg;
   return (
     <tr className="border-t border-zinc-800/50">
       <td className="py-2 pr-3 text-xs text-zinc-500 font-medium tabular-nums">{num}</td>
       <td className="py-2 pr-4 text-xs text-zinc-400 tabular-nums font-mono">
-        {set.weight_kg} kg &times; {set.reps}
+        {fmtWeight(set.weight_kg)} &times; {set.reps}
       </td>
       <td className={`py-2 pr-3 text-xs font-semibold tabular-nums font-mono ${s.color}`}>
-        {plan.targetWeight} kg &times; {plan.targetReps}
+        {plan.bodyweight
+          ? `BW × ${plan.targetReps}`
+          : `${plan.targetWeight} kg × ${plan.targetReps}`}
         {weightChanged && <span className="ml-1 text-[10px]">(new)</span>}
       </td>
       <td className="py-2">

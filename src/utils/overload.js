@@ -98,23 +98,60 @@ const REP_RANGES = {
   'Skull Crusher':                   [10, 12],
   'Dumbbell Tricep Extension':       [12, 15],
 
-  // Core
+  // Core / bodyweight
   'Hanging Leg Raise':               [10, 15],
+  'Lying Leg Raise':                 [10, 15],
   'Ab Wheel Rollout':                [8,  12],
   'Cable Crunch':                    [12, 15],
   'Dragon Flag':                     [5,  10],
+
+  // Bodyweight pulling
+  'Pull Up':                         [6,  10],
+  'Chin Up':                         [6,  10],
+  'Chin-up':                         [6,  10],
+  'Muscle Up':                       [4,   8],
+
+  // Common Hevy name variants (Hevy appends the implement in parentheses)
+  'Single Arm Lat Pulldown':         [12, 15],
+  'Preacher Curl (Barbell)':         [10, 12],
+  'Preacher Curl (Dumbbell)':        [10, 15],
+  'Zottman Curl (Dumbbell)':         [10, 12],
+  'Hammer Curl (Dumbbell)':          [10, 15],
+  'Bicep Curl (Dumbbell)':           [10, 15],
+  'Bicep Curl (Barbell)':            [8,  12],
+  'Lateral Raise (Cable)':           [15, 20],
+  'Tricep Pushdown (Cable)':         [12, 15],
+  'Chest Fly (Cable)':               [12, 15],
+  'Row (Cable)':                     [10, 15],
+  'Overhead Tricep Extension (Cable)':[12, 15],
+  'Leg Curl (Machine)':              [10, 12],
+  'Leg Extension (Machine)':         [12, 15],
+  'Hip Thrust (Barbell)':            [10, 12],
+  'Romanian Deadlift (Dumbbell)':    [10, 12],
 };
 
 const DEFAULT_RANGE = { min: 8, max: 12 };
 
+// Strip implement suffix like " (Barbell)", " (Dumbbell)", " (Machine)", " (Cable)"
+// so "Zottman Curl (Dumbbell)" falls back to "Zottman Curl" automatically.
+function stripSuffix(name) {
+  return name.replace(/\s*\((Barbell|Dumbbell|Machine|Cable|Band|Smith|EZ Bar|Kettlebell)\)\s*$/i, '').trim();
+}
+
 /**
  * Returns { min, max } for an exercise.
- * Falls back to inferring from the user's historical avgReps if the exercise
- * isn't in the hardcoded map.
+ * Resolution order:
+ *   1. Exact name in map
+ *   2. Name with implement suffix stripped
+ *   3. Inferred from user's historical avgReps
+ *   4. Default 8–12
  */
 export function getRepRange(exerciseName, historyAvgReps = []) {
-  const mapped = REP_RANGES[exerciseName];
-  if (mapped) return { min: mapped[0], max: mapped[1] };
+  const direct = REP_RANGES[exerciseName];
+  if (direct) return { min: direct[0], max: direct[1] };
+
+  const stripped = REP_RANGES[stripSuffix(exerciseName)];
+  if (stripped) return { min: stripped[0], max: stripped[1] };
 
   // Infer from history: centre a 4-rep window on the user's typical rep count
   if (historyAvgReps.length >= 3) {
@@ -136,15 +173,23 @@ export function getRepRange(exerciseName, historyAvgReps = []) {
  *   reps < min      → +1 rep, same weight                        (build)
  */
 export function computeSetPlan(set, allHitMax, range = DEFAULT_RANGE) {
-  const weight = set.weight_kg ?? 0;
-  const reps   = set.reps ?? 0;
+  const weight     = set.weight_kg ?? null; // null = bodyweight
+  const reps       = set.reps ?? 0;
+  const bodyweight = weight === null || weight === 0;
   const { min, max } = range;
 
   if (allHitMax) {
-    return { targetWeight: weight + 2.5, targetReps: min, status: 'increase', lastReps: reps, lastWeight: weight };
+    return {
+      targetWeight: bodyweight ? null : weight + 2.5,
+      targetReps:   min,
+      status:       bodyweight ? 'maintain' : 'increase', // BW exercises: just add reps
+      lastReps: reps,
+      lastWeight: weight,
+      bodyweight,
+    };
   }
   if (reps >= max) {
-    return { targetWeight: weight, targetReps: max, status: 'ready', lastReps: reps, lastWeight: weight };
+    return { targetWeight: weight, targetReps: max, status: 'ready', lastReps: reps, lastWeight: weight, bodyweight };
   }
   return {
     targetWeight: weight,
@@ -152,6 +197,7 @@ export function computeSetPlan(set, allHitMax, range = DEFAULT_RANGE) {
     status:       reps < min ? 'build' : 'maintain',
     lastReps: reps,
     lastWeight: weight,
+    bodyweight,
   };
 }
 
